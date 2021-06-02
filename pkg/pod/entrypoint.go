@@ -101,7 +101,7 @@ func orderContainers(entrypointImage string, commonExtraEntrypointArgs []string,
 		WorkingDir: "/",
 		// Invoke the entrypoint binary in "cp mode" to copy itself
 		// into the correct location for later steps.
-		Command:      []string{"/ko-app/entrypoint", "cp", "/ko-app/entrypoint", entrypointBinary},
+		Command:      []string{"c:/ProgramData/tektoncd/pipeline/entrypoint.exe", "cp", "c:/ProgramData/tektoncd/pipeline/entrypoint.exe", entrypointBinary},
 		VolumeMounts: []corev1.VolumeMount{toolsMount},
 	}
 
