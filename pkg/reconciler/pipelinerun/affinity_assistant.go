@@ -57,7 +57,8 @@ func (c *Reconciler) createAffinityAssistants(ctx context.Context, wb []v1beta1.
 			claimName := getClaimName(w, pr.GetOwnerReference())
 			switch {
 			case apierrors.IsNotFound(err):
-				affinityAssistantStatefulSet := affinityAssistantStatefulSet(affinityAssistantName, pr, claimName, c.Images.NopImage)
+				nopImage := c.Images.GetNopImage(pr.Spec.PodTemplate)
+				affinityAssistantStatefulSet := affinityAssistantStatefulSet(affinityAssistantName, pr, claimName, nopImage)
 				_, err := c.KubeClientSet.AppsV1().StatefulSets(namespace).Create(ctx, affinityAssistantStatefulSet, metav1.CreateOptions{})
 				if err != nil {
 					errs = append(errs, fmt.Errorf("failed to create StatefulSet %s: %s", affinityAssistantName, err))

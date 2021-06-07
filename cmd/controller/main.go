@@ -43,7 +43,9 @@ const (
 
 var (
 	entrypointImage          = flag.String("entrypoint-image", "", "The container image containing our entrypoint binary.")
+	entrypointImageWindows   = flag.String("entrypoint-image-windows", "", "The container image containing our entrypoint binary for Windows.")
 	nopImage                 = flag.String("nop-image", "", "The container image used to stop sidecars")
+	nopImageWindows          = flag.String("nop-image-windows", "", "The container image used to stop sidecars for Windows")
 	gitImage                 = flag.String("git-image", "", "The container image containing our Git binary.")
 	kubeconfigWriterImage    = flag.String("kubeconfig-writer-image", "", "The container image containing our kubeconfig writer binary.")
 	shellImage               = flag.String("shell-image", "", "The container image containing a shell")
@@ -64,7 +66,9 @@ func main() {
 	version.SetVersion(*versionGiven)
 	images := pipeline.Images{
 		EntrypointImage:          *entrypointImage,
+		EntrypointImageWindows:   *entrypointImageWindows,
 		NopImage:                 *nopImage,
+		NopImageWindows:          *nopImageWindows,
 		GitImage:                 *gitImage,
 		KubeconfigWriterImage:    *kubeconfigWriterImage,
 		ShellImage:               *shellImage,

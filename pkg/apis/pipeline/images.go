@@ -19,15 +19,19 @@ package pipeline
 import (
 	"fmt"
 	"sort"
+
+	"github.com/tektoncd/pipeline/pkg/apis/pipeline/pod"
 )
 
 // Images holds the images reference for a number of container images used
 // across tektoncd pipelines.
 type Images struct {
 	// EntrypointImage is container image containing our entrypoint binary.
-	EntrypointImage string
+	EntrypointImage        string
+	EntrypointImageWindows string
 	// NopImage is the container image used to kill sidecars.
-	NopImage string
+	NopImage        string
+	NopImageWindows string
 	// GitImage is the container image with Git that we use to implement the Git source step.
 	GitImage string
 	// KubeconfigWriterImage is the container image containing our kubeconfig writer binary.
@@ -51,7 +55,9 @@ func (i Images) Validate() error {
 		v, name string
 	}{
 		{i.EntrypointImage, "entrypoint"},
+		{i.EntrypointImageWindows, "entrypoint-windows"},
 		{i.NopImage, "nop"},
+		{i.NopImageWindows, "nop-windows"},
 		{i.GitImage, "git"},
 		{i.KubeconfigWriterImage, "kubeconfig-writer"},
 		{i.ShellImage, "shell"},
@@ -68,4 +74,28 @@ func (i Images) Validate() error {
 		return fmt.Errorf("found unset image flags: %s", unset)
 	}
 	return nil
+}
+
+// GetEntrypointImage returns the entrypoint image reference for the
+// platform defined by a PodTemplate
+func (i Images) GetEntrypointImage(podTemplate *pod.Template) string {
+	if os, ok := podTemplate.NodeSelector["kubernetes.io/os"]; ok {
+		if os == "windows" {
+			return i.EntrypointImageWindows
+		}
+	}
+
+	return i.EntrypointImage
+}
+
+// GetNopImage returns the Nop image reference for the platform
+// defined by a PodTemplate
+func (i Images) GetNopImage(podTemplate *pod.Template) string {
+	if os, ok := podTemplate.NodeSelector["kubernetes.io/os"]; ok {
+		if os == "windows" {
+			return i.NopImageWindows
+		}
+	}
+
+	return i.NopImage
 }

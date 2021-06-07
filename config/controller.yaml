@@ -72,7 +72,9 @@ spec:
           "-kubeconfig-writer-image", "ko://github.com/tektoncd/pipeline/cmd/kubeconfigwriter",
           "-git-image", "ko://github.com/tektoncd/pipeline/cmd/git-init",
           "-entrypoint-image", "ko://github.com/tektoncd/pipeline/cmd/entrypoint",
+          "-entrypoint-image-windows", "10.115.11.41:30002/tekton/entrypoint-windows",
           "-nop-image", "ko://github.com/tektoncd/pipeline/cmd/nop",
+          "-nop-image-windows", "10.115.11.41:30002/tekton/nop-windows",
           "-imagedigest-exporter-image", "ko://github.com/tektoncd/pipeline/cmd/imagedigestexporter",
           "-pr-image", "ko://github.com/tektoncd/pipeline/cmd/pullrequest-init",
 

@@ -214,7 +214,8 @@ func (c *Reconciler) stopSidecars(ctx context.Context, tr *v1beta1.TaskRun) (*co
 		}
 	}
 
-	pod, err := podconvert.StopSidecars(ctx, c.Images.NopImage, c.KubeClientSet, tr.Namespace, tr.Status.PodName)
+	nopImage := c.Images.GetNopImage(tr.Spec.PodTemplate)
+	pod, err := podconvert.StopSidecars(ctx, nopImage, c.KubeClientSet, tr.Namespace, tr.Status.PodName)
 	if err == nil {
 		// Check if any SidecarStatuses are still shown as Running after stopping
 		// Sidecars. If any Running, update SidecarStatuses based on Pod ContainerStatuses.

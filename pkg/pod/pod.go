@@ -150,7 +150,8 @@ func (b *Builder) Build(ctx context.Context, taskRun *v1beta1.TaskRun, taskSpec 
 	// Rewrite steps with entrypoint binary. Append the entrypoint init
 	// container to place the entrypoint binary. Also add timeout flags
 	// to entrypoint binary.
-	entrypointInit, stepContainers, err := orderContainers(b.Images.EntrypointImage, credEntrypointArgs, stepContainers, &taskSpec)
+	entrypointImage := b.Images.GetEntrypointImage(taskRun.Spec.PodTemplate)
+	entrypointInit, stepContainers, err := orderContainers(entrypointImage, credEntrypointArgs, stepContainers, &taskSpec)
 	if err != nil {
 		return nil, err
 	}
