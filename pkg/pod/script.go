@@ -51,13 +51,42 @@ var (
 // It does this by prepending a container that writes specified Script bodies
 // to executable files in a shared volumeMount, then produces Containers that
 // simply run those executable files.
-func convertScripts(shellImage string, steps []v1beta1.Step, sidecars []v1beta1.Sidecar) (*corev1.Container, []corev1.Container, []corev1.Container) {
+func convertScripts(shellImageLinux string, shellImageWin string, steps []v1beta1.Step, sidecars []v1beta1.Sidecar) (*corev1.Container, []corev1.Container, []corev1.Container) {
 	placeScripts := false
+	requiresWindows := false
+	// Detect windows shebangs
+	for _, step := range steps {
+		cleaned := strings.TrimSpace(step.Script)
+		if strings.HasPrefix(cleaned, "#!win") {
+			requiresWindows = true
+			break
+		}
+	}
+	// If no step needs windows, then check sidecars to be sure
+	if !requiresWindows {
+		for _, sidecar := range sidecars {
+			cleaned := strings.TrimSpace(sidecar.Script)
+			if strings.HasPrefix(cleaned, "#!win") {
+				requiresWindows = true
+				break
+			}
+		}
+	}
+	shellImage := shellImageLinux
+	shellCommand := "sh"
+	shellArg := "-c"
+	// Set windows variants for Image, Command and Args
+	if requiresWindows {
+		shellImage = shellImageWin
+		shellCommand = "pwsh"
+		shellArg = "-Command"
+	}
+
 	placeScriptsInit := corev1.Container{
 		Name:         "place-scripts",
 		Image:        shellImage,
-		Command:      []string{"sh"},
-		Args:         []string{"-c", ""},
+		Command:      []string{shellCommand},
+		Args:         []string{shellArg, ""},
 		VolumeMounts: []corev1.VolumeMount{scriptsVolumeMount},
 	}
 
@@ -97,7 +126,7 @@ func convertListOfSteps(steps []v1beta1.Step, initContainer *corev1.Container, p
 		// The shebang must be the first non-empty line.
 		cleaned := strings.TrimSpace(s.Script)
 		hasShebang := strings.HasPrefix(cleaned, "#!")
-
+		requiresWindows := strings.HasPrefix(cleaned, "#!win")
 		script := s.Script
 		if !hasShebang {
 			script = defaultScriptPreamble + s.Script
@@ -110,27 +139,64 @@ func convertListOfSteps(steps []v1beta1.Step, initContainer *corev1.Container, p
 		// Append to the place-scripts script to place the
 		// script file in a known location in the scripts volume.
 		tmpFile := filepath.Join(scriptsDir, names.SimpleNameGenerator.RestrictLengthWithRandomSuffix(fmt.Sprintf("%s-%d", namePrefix, i)))
-		// heredoc is the "here document" placeholder string
-		// used to cat script contents into the file. Typically
-		// this is the string "EOF" but if this value were
-		// "EOF" it would prevent users from including the
-		// string "EOF" in their own scripts. Instead we
-		// randomly generate a string to (hopefully) prevent
-		// collisions.
-		heredoc := names.SimpleNameGenerator.RestrictLengthWithRandomSuffix(fmt.Sprintf("%s-heredoc-randomly-generated", namePrefix))
-		initContainer.Args[1] += fmt.Sprintf(`tmpfile="%s"
+		if requiresWindows {
+			// Set the command to execute the correct script in the mounted volume.
+			shebangLine := strings.Split(script, "\n")[0]
+			splitLine := strings.Split(shebangLine, " ")
+			var command, args []string
+			if len(splitLine) > 1 {
+				strippedCommand := splitLine[1:]
+				command = strippedCommand[0:1]
+				// Handle legacy powershell limitation
+				if strings.HasPrefix(command[0], "powershell") {
+					tmpFile += ".ps1"
+				}
+				if len(strippedCommand) > 1 {
+					args = append(strippedCommand[1:], tmpFile)
+				} else {
+					args = []string{tmpFile}
+				}
+			} else {
+				// If no interpreter is specified then strip the shebang and
+				// create a .cmd file
+				tmpFile += ".cmd"
+				commandLines := strings.Split(script, "\n")[1:]
+				script = strings.Join(commandLines, "\n")
+				command = []string{tmpFile}
+				args = []string{}
+			}
+
+			// Need to delay this until tmpFile is locked in
+			initContainer.Args[1] += fmt.Sprintf(`@"
+%s
+"@ | Out-File -FilePath %s
+`, script, tmpFile)
+
+			steps[i].Command = command
+			steps[i].Args = args
+		} else {
+			// heredoc is the "here document" placeholder string
+			// used to cat script contents into the file. Typically
+			// this is the string "EOF" but if this value were
+			// "EOF" it would prevent users from including the
+			// string "EOF" in their own scripts. Instead we
+			// randomly generate a string to (hopefully) prevent
+			// collisions.
+			heredoc := names.SimpleNameGenerator.RestrictLengthWithRandomSuffix(fmt.Sprintf("%s-heredoc-randomly-generated", namePrefix))
+			initContainer.Args[1] += fmt.Sprintf(`tmpfile="%s"
 touch ${tmpfile} && chmod +x ${tmpfile}
 cat > ${tmpfile} << '%s'
 %s
 %s
 `, tmpFile, heredoc, script, heredoc)
 
-		// Set the command to execute the correct script in the mounted
-		// volume.
-		// A previous merge with stepTemplate may have populated
-		// Command and Args, even though this is not normally valid, so
-		// we'll clear out the Args and overwrite Command.
-		steps[i].Command = []string{tmpFile}
+			// Set the command to execute the correct script in the mounted
+			// volume.
+			// A previous merge with stepTemplate may have populated
+			// Command and Args, even though this is not normally valid, so
+			// we'll clear out the Args and overwrite Command.
+			steps[i].Command = []string{tmpFile}
+		}
 		steps[i].VolumeMounts = append(steps[i].VolumeMounts, scriptsVolumeMount)
 		containers = append(containers, steps[i].Container)
 	}

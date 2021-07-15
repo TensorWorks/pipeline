@@ -71,8 +71,13 @@ spec:
           # by image references by digest.
           "-kubeconfig-writer-image", "ko://github.com/tektoncd/pipeline/cmd/kubeconfigwriter",
           "-git-image", "ko://github.com/tektoncd/pipeline/cmd/git-init",
-          "-entrypoint-image", "ko://github.com/tektoncd/pipeline/cmd/entrypoint",
-          "-nop-image", "ko://github.com/tektoncd/pipeline/cmd/nop",
+
+          # For now to support windows workloads we need the entrypoint and nop to point to these
+          # custom manifest lists. We are hoping that ko will be able to build multi OS images
+          # eventually, which would allow these to be ko paths in future
+          "-entrypoint-image", "aidendeloryn/entrypoint:multi-platform",
+          "-nop-image", "aidendeloryn/nop:multi-platform",
+
           "-imagedigest-exporter-image", "ko://github.com/tektoncd/pipeline/cmd/imagedigestexporter",
           "-pr-image", "ko://github.com/tektoncd/pipeline/cmd/pullrequest-init",
 
@@ -81,7 +86,10 @@ spec:
           # The shell image must be root in order to create directories and copy files to PVCs.
           # gcr.io/distroless/base:debug as of Apirl 17, 2021
           # image shall not contains tag, so it will be supported on a runtime like cri-o
-          "-shell-image", "gcr.io/distroless/base@sha256:aa4fd987555ea10e1a4ec8765da8158b5ffdfef1e72da512c7ede509bc9966c4"
+          "-shell-image", "gcr.io/distroless/base@sha256:aa4fd987555ea10e1a4ec8765da8158b5ffdfef1e72da512c7ede509bc9966c4",
+          # for script mode to work with windows we need a powershell image
+          # pinning to nanoserver tag as of July 15 2021
+          "-shell-image-win", "mcr.microsoft.com/powershell:nanoserver@sha256:b6d5ff841b78bdf2dfed7550000fd4f3437385b8fa686ec0f010be24777654d6"
         ]
         volumeMounts:
         - name: config-logging

@@ -130,7 +130,7 @@ func (b *Builder) Build(ctx context.Context, taskRun *v1beta1.TaskRun, taskSpec 
 
 	// Convert any steps with Script to command+args.
 	// If any are found, append an init container to initialize scripts.
-	scriptsInit, stepContainers, sidecarContainers := convertScripts(b.Images.ShellImage, steps, taskSpec.Sidecars)
+	scriptsInit, stepContainers, sidecarContainers := convertScripts(b.Images.ShellImage, b.Images.ShellImageWin, steps, taskSpec.Sidecars)
 	if scriptsInit != nil {
 		initContainers = append(initContainers, *scriptsInit)
 		volumes = append(volumes, scriptsVolume)

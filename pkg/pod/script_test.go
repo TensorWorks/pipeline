@@ -27,7 +27,7 @@ import (
 )
 
 func TestConvertScripts_NothingToConvert_EmptySidecars(t *testing.T) {
-	gotInit, gotScripts, gotSidecars := convertScripts(images.ShellImage, []v1beta1.Step{{
+	gotInit, gotScripts, gotSidecars := convertScripts(images.ShellImage, images.ShellImageWin, []v1beta1.Step{{
 		Container: corev1.Container{
 			Image: "step-1",
 		},
@@ -54,7 +54,7 @@ func TestConvertScripts_NothingToConvert_EmptySidecars(t *testing.T) {
 }
 
 func TestConvertScripts_NothingToConvert_NilSidecars(t *testing.T) {
-	gotInit, gotScripts, gotSidecars := convertScripts(images.ShellImage, []v1beta1.Step{{
+	gotInit, gotScripts, gotSidecars := convertScripts(images.ShellImage, images.ShellImageWin, []v1beta1.Step{{
 		Container: corev1.Container{
 			Image: "step-1",
 		},
@@ -81,7 +81,7 @@ func TestConvertScripts_NothingToConvert_NilSidecars(t *testing.T) {
 }
 
 func TestConvertScripts_NothingToConvert_WithSidecar(t *testing.T) {
-	gotInit, gotScripts, gotSidecars := convertScripts(images.ShellImage, []v1beta1.Step{{
+	gotInit, gotScripts, gotSidecars := convertScripts(images.ShellImage, images.ShellImageWin, []v1beta1.Step{{
 		Container: corev1.Container{
 			Image: "step-1",
 		},
@@ -130,7 +130,7 @@ func TestConvertScripts(t *testing.T) {
 		MountPath: "/another/one",
 	}}
 
-	gotInit, gotSteps, gotSidecars := convertScripts(images.ShellImage, []v1beta1.Step{{
+	gotInit, gotSteps, gotSidecars := convertScripts(images.ShellImage, images.ShellImageWin, []v1beta1.Step{{
 		Script: `#!/bin/sh
 script-1`,
 		Container: corev1.Container{Image: "step-1"},
@@ -225,7 +225,7 @@ func TestConvertScripts_WithSidecar(t *testing.T) {
 		MountPath: "/another/one",
 	}}
 
-	gotInit, gotSteps, gotSidecars := convertScripts(images.ShellImage, []v1beta1.Step{{
+	gotInit, gotSteps, gotSidecars := convertScripts(images.ShellImage, images.ShellImageWin, []v1beta1.Step{{
 		Script: `#!/bin/sh
 script-1`,
 		Container: corev1.Container{Image: "step-1"},
