@@ -53,25 +53,8 @@ var (
 // simply run those executable files.
 func convertScripts(shellImageLinux string, shellImageWin string, steps []v1beta1.Step, sidecars []v1beta1.Sidecar) (*corev1.Container, []corev1.Container, []corev1.Container) {
 	placeScripts := false
-	requiresWindows := false
-	// Detect windows shebangs
-	for _, step := range steps {
-		cleaned := strings.TrimSpace(step.Script)
-		if strings.HasPrefix(cleaned, "#!win") {
-			requiresWindows = true
-			break
-		}
-	}
-	// If no step needs windows, then check sidecars to be sure
-	if !requiresWindows {
-		for _, sidecar := range sidecars {
-			cleaned := strings.TrimSpace(sidecar.Script)
-			if strings.HasPrefix(cleaned, "#!win") {
-				requiresWindows = true
-				break
-			}
-		}
-	}
+	requiresWindows := checkWindowsRequirement(steps, sidecars)
+
 	shellImage := shellImageLinux
 	shellCommand := "sh"
 	shellArg := "-c"
@@ -140,33 +123,7 @@ func convertListOfSteps(steps []v1beta1.Step, initContainer *corev1.Container, p
 		// script file in a known location in the scripts volume.
 		tmpFile := filepath.Join(scriptsDir, names.SimpleNameGenerator.RestrictLengthWithRandomSuffix(fmt.Sprintf("%s-%d", namePrefix, i)))
 		if requiresWindows {
-			// Set the command to execute the correct script in the mounted volume.
-			shebangLine := strings.Split(script, "\n")[0]
-			splitLine := strings.Split(shebangLine, " ")
-			var command, args []string
-			if len(splitLine) > 1 {
-				strippedCommand := splitLine[1:]
-				command = strippedCommand[0:1]
-				// Handle legacy powershell limitation
-				if strings.HasPrefix(command[0], "powershell") {
-					tmpFile += ".ps1"
-				}
-				if len(strippedCommand) > 1 {
-					args = append(strippedCommand[1:], tmpFile)
-				} else {
-					args = []string{tmpFile}
-				}
-			} else {
-				// If no interpreter is specified then strip the shebang and
-				// create a .cmd file
-				tmpFile += ".cmd"
-				commandLines := strings.Split(script, "\n")[1:]
-				script = strings.Join(commandLines, "\n")
-				command = []string{tmpFile}
-				args = []string{}
-			}
-
-			// Need to delay this until tmpFile is locked in
+			command, args, script, tmpFile := extractWindowsScriptComponents(script, tmpFile)
 			initContainer.Args[1] += fmt.Sprintf(`@"
 %s
 "@ | Out-File -FilePath %s
@@ -201,4 +158,58 @@ cat > ${tmpfile} << '%s'
 		containers = append(containers, steps[i].Container)
 	}
 	return containers
+}
+
+func checkWindowsRequirement(steps []v1beta1.Step, sidecars []v1beta1.Sidecar) bool {
+	requiresWindows := false
+	// Detect windows shebangs
+	for _, step := range steps {
+		cleaned := strings.TrimSpace(step.Script)
+		if strings.HasPrefix(cleaned, "#!win") {
+			requiresWindows = true
+			break
+		}
+	}
+	// If no step needs windows, then check sidecars to be sure
+	if !requiresWindows {
+		for _, sidecar := range sidecars {
+			cleaned := strings.TrimSpace(sidecar.Script)
+			if strings.HasPrefix(cleaned, "#!win") {
+				requiresWindows = true
+				break
+			}
+		}
+	}
+
+	return requiresWindows
+}
+
+func extractWindowsScriptComponents(script string, fileName string) ([]string, []string, string, string) {
+	// Set the command to execute the correct script in the mounted volume.
+	shebangLine := strings.Split(script, "\n")[0]
+	splitLine := strings.Split(shebangLine, " ")
+	var command, args []string
+	if len(splitLine) > 1 {
+		strippedCommand := splitLine[1:]
+		command = strippedCommand[0:1]
+		// Handle legacy powershell limitation
+		if strings.HasPrefix(command[0], "powershell") {
+			fileName += ".ps1"
+		}
+		if len(strippedCommand) > 1 {
+			args = append(strippedCommand[1:], fileName)
+		} else {
+			args = []string{fileName}
+		}
+	} else {
+		// If no interpreter is specified then strip the shebang and
+		// create a .cmd file
+		fileName += ".cmd"
+		commandLines := strings.Split(script, "\n")[1:]
+		script = strings.Join(commandLines, "\n")
+		command = []string{fileName}
+		args = []string{}
+	}
+
+	return command, args, script, fileName
 }
