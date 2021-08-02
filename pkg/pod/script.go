@@ -159,6 +159,8 @@ func convertListOfSteps(steps []v1beta1.Step, initContainer *corev1.Container, p
 `, script, scriptFile)
 
 			steps[i].Command = command
+			// Append existing args field to end of derived args
+			args = append(args, steps[i].Args...)
 			steps[i].Args = args
 		} else {
 			// Only encode the script for linux scripts
@@ -237,8 +239,7 @@ func checkWindowsRequirement(steps []v1beta1.Step, sidecars []v1beta1.Sidecar) b
 	for _, step := range steps {
 		cleaned := strings.TrimSpace(step.Script)
 		if strings.HasPrefix(cleaned, "#!win") {
-			requiresWindows = true
-			break
+			return true
 		}
 	}
 	// If no step needs windows, then check sidecars to be sure
@@ -246,13 +247,11 @@ func checkWindowsRequirement(steps []v1beta1.Step, sidecars []v1beta1.Sidecar) b
 		for _, sidecar := range sidecars {
 			cleaned := strings.TrimSpace(sidecar.Script)
 			if strings.HasPrefix(cleaned, "#!win") {
-				requiresWindows = true
-				break
+				return true
 			}
 		}
 	}
-
-	return requiresWindows
+	return false
 }
 
 func extractWindowsScriptComponents(script string, fileName string) ([]string, []string, string, string) {
@@ -268,7 +267,8 @@ func extractWindowsScriptComponents(script string, fileName string) ([]string, [
 			fileName += ".ps1"
 		}
 		if len(strippedCommand) > 1 {
-			args = append(strippedCommand[1:], fileName)
+			args = strippedCommand[1:]
+			args = append(args, fileName)
 		} else {
 			args = []string{fileName}
 		}
