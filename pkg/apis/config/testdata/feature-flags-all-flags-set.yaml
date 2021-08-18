@@ -25,4 +25,5 @@ data:
   require-git-ssh-secret-known-hosts: "true"
   enable-tekton-oci-bundles: "true"
   enable-custom-tasks: "true"
+  scope-when-expressions-to-task: "true"
   enable-api-fields: "alpha"

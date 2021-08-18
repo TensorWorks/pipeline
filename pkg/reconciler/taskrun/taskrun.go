@@ -72,8 +72,6 @@ type Reconciler struct {
 	entrypointCache   podconvert.EntrypointCache
 	metrics           *Recorder
 	pvcHandler        volumeclaim.PvcHandler
-
-	snooze func(kmeta.Accessor, time.Duration)
 }
 
 // Check that our Reconciler implements taskrunreconciler.Interface
@@ -163,15 +161,6 @@ func (c *Reconciler) ReconcileKind(ctx context.Context, tr *v1beta1.TaskRun) pkg
 		err := c.failTaskRun(ctx, tr, v1beta1.TaskRunReasonTimedOut, message)
 		return c.finishReconcileUpdateEmitEvents(ctx, tr, before, err)
 	}
-	defer func() {
-		if tr.Status.StartTime == nil {
-			return
-		}
-		// Compute the time since the task started.
-		elapsed := time.Since(tr.Status.StartTime.Time)
-		// Snooze this resource until the timeout has elapsed.
-		c.snooze(tr, tr.GetTimeout(ctx)-elapsed)
-	}()
 
 	// prepare fetches all required resources, validates them together with the
 	// taskrun, runs API convertions. Errors that come out of prepare are
@@ -194,7 +183,17 @@ func (c *Reconciler) ReconcileKind(ctx context.Context, tr *v1beta1.TaskRun) pkg
 	}
 
 	// Emit events (only when ConditionSucceeded was changed)
-	return c.finishReconcileUpdateEmitEvents(ctx, tr, before, err)
+	if err = c.finishReconcileUpdateEmitEvents(ctx, tr, before, err); err != nil {
+		return err
+	}
+
+	if tr.Status.StartTime != nil {
+		// Compute the time since the task started.
+		elapsed := time.Since(tr.Status.StartTime.Time)
+		// Snooze this resource until the timeout has elapsed.
+		return controller.NewRequeueAfter(tr.GetTimeout(ctx) - elapsed)
+	}
+	return nil
 }
 func (c *Reconciler) stopSidecars(ctx context.Context, tr *v1beta1.TaskRun) (*corev1.Pod, error) {
 	logger := logging.FromContext(ctx)
@@ -302,9 +301,9 @@ func (c *Reconciler) prepare(ctx context.Context, tr *v1beta1.TaskRun) (*v1beta1
 	}
 	if tr.Spec.TaskRef != nil {
 		if tr.Spec.TaskRef.Kind == "ClusterTask" {
-			tr.ObjectMeta.Labels[pipeline.GroupName+pipeline.ClusterTaskLabelKey] = taskMeta.Name
+			tr.ObjectMeta.Labels[pipeline.ClusterTaskLabelKey] = taskMeta.Name
 		} else {
-			tr.ObjectMeta.Labels[pipeline.GroupName+pipeline.TaskLabelKey] = taskMeta.Name
+			tr.ObjectMeta.Labels[pipeline.TaskLabelKey] = taskMeta.Name
 		}
 	}
 
@@ -401,7 +400,7 @@ func (c *Reconciler) reconcile(ctx context.Context, tr *v1beta1.TaskRun, rtr *re
 		// List pods that have a label with this TaskRun name.  Do not include other labels from the
 		// TaskRun in this selector.  The user could change them during the lifetime of the TaskRun so the
 		// current labels may not be set on a previously created Pod.
-		labelSelector := fmt.Sprintf("%s=%s", podconvert.TaskRunLabelKey, tr.Name)
+		labelSelector := fmt.Sprintf("%s=%s", pipeline.TaskRunLabelKey, tr.Name)
 		pos, err := c.KubeClientSet.CoreV1().Pods(tr.Namespace).List(ctx, metav1.ListOptions{
 			LabelSelector: labelSelector,
 		})
@@ -654,6 +653,14 @@ func (c *Reconciler) createPod(ctx context.Context, tr *v1beta1.TaskRun, rtr *re
 
 	// Apply task result substitution
 	ts = resources.ApplyTaskResults(ts)
+
+	// Apply step exitCode path substitution
+	ts = resources.ApplyStepExitCodePath(ts)
+
+	if validateErr := ts.Validate(ctx); validateErr != nil {
+		logger.Errorf("Failed to create a pod for taskrun: %s due to task validation error %v", tr.Name, validateErr)
+		return nil, validateErr
+	}
 
 	ts, err = workspace.Apply(ctx, *ts, tr.Spec.Workspaces, workspaceVolumes)
 	if err != nil {

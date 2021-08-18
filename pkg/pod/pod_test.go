@@ -19,6 +19,7 @@ package pod
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -31,13 +32,13 @@ import (
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/pod"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
-	"github.com/tektoncd/pipeline/pkg/version"
 	"github.com/tektoncd/pipeline/test/diff"
 	"github.com/tektoncd/pipeline/test/names"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakek8s "k8s.io/client-go/kubernetes/fake"
+	"knative.dev/pkg/changeset"
 	logtesting "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/system"
 
@@ -57,7 +58,18 @@ var (
 	featureFlagDisableHomeEnvKey             = "disable-home-env-overwrite"
 	featureFlagDisableWorkingDirKey          = "disable-working-directory-overwrite"
 	featureFlagSetReadyAnnotationOnPodCreate = "enable-ready-annotation-on-pod-create"
+
+	fakeVersion string
 )
+
+func init() {
+	os.Setenv("KO_DATA_PATH", "./testdata/")
+	commit, err := changeset.Get()
+	if err != nil {
+		panic(err)
+	}
+	fakeVersion = commit
+}
 
 func TestPodBuild(t *testing.T) {
 	secretsVolume := corev1.Volume{
@@ -110,6 +122,10 @@ func TestPodBuild(t *testing.T) {
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-name",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -155,6 +171,10 @@ func TestPodBuild(t *testing.T) {
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-name",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -198,6 +218,10 @@ func TestPodBuild(t *testing.T) {
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-name",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -246,6 +270,10 @@ func TestPodBuild(t *testing.T) {
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-name",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -294,6 +322,10 @@ func TestPodBuild(t *testing.T) {
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-name",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-basic-docker=multi-creds=https://docker.io",
 					"-basic-docker=multi-creds=https://us.gcr.io",
 					"-basic-git=multi-creds=github.com",
@@ -359,6 +391,10 @@ func TestPodBuild(t *testing.T) {
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-name",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -414,6 +450,10 @@ func TestPodBuild(t *testing.T) {
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-a-very-very-long-character-step-name-to-trigger-max-len----and-invalid-characters",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -454,6 +494,10 @@ func TestPodBuild(t *testing.T) {
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-ends-with-invalid-%%__$$",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -505,6 +549,10 @@ func TestPodBuild(t *testing.T) {
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-name",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -553,6 +601,10 @@ func TestPodBuild(t *testing.T) {
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-primary-name",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -600,7 +652,7 @@ func TestPodBuild(t *testing.T) {
 					Name:         "place-scripts",
 					Image:        "busybox",
 					Command:      []string{"sh"},
-					VolumeMounts: []corev1.VolumeMount{scriptsVolumeMount, toolsMount},
+					VolumeMounts: []corev1.VolumeMount{writeScriptsVolumeMount, toolsMount},
 					Args: []string{"-c", `scriptfile="/tekton/scripts/sidecar-script-0-9l9zj"
 touch ${scriptfile} && chmod +x ${scriptfile}
 cat > ${scriptfile} << '_EOF_'
@@ -622,6 +674,10 @@ _EOF_
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-primary-name",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -680,6 +736,10 @@ _EOF_
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-primary-name",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -740,6 +800,10 @@ _EOF_
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-unnamed-0",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -767,6 +831,10 @@ _EOF_
 					"/tekton/tools/1",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-unnamed-1",
+					"-step_metadata_dir_link",
+					"/tekton/steps/1",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -842,7 +910,7 @@ IyEvdXNyL2Jpbi9lbnYgcHl0aG9uCnByaW50KCJIZWxsbyBmcm9tIFB5dGhvbiIp
 _EOF_
 /tekton/tools/entrypoint decode-script "${scriptfile}"
 `},
-					VolumeMounts: []corev1.VolumeMount{scriptsVolumeMount, toolsMount},
+					VolumeMounts: []corev1.VolumeMount{writeScriptsVolumeMount, toolsMount},
 				},
 			},
 			Containers: []corev1.Container{{
@@ -857,6 +925,10 @@ _EOF_
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-one",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"/tekton/scripts/script-0-9l9zj",
 					"--",
@@ -881,6 +953,10 @@ _EOF_
 					"/tekton/tools/1",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-two",
+					"-step_metadata_dir_link",
+					"/tekton/steps/1",
 					"-entrypoint",
 					"/tekton/scripts/script-1-mz4c7",
 					"--",
@@ -905,6 +981,10 @@ _EOF_
 					"/tekton/tools/2",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-regular-step",
+					"-step_metadata_dir_link",
+					"/tekton/steps/2",
 					"-entrypoint",
 					"regular",
 					"--",
@@ -955,7 +1035,7 @@ IyEvYmluL3NoCiQk
 _EOF_
 /tekton/tools/entrypoint decode-script "${scriptfile}"
 `},
-				VolumeMounts: []corev1.VolumeMount{scriptsVolumeMount, toolsMount},
+				VolumeMounts: []corev1.VolumeMount{writeScriptsVolumeMount, toolsMount},
 			}},
 			Containers: []corev1.Container{{
 				Name:    "step-one",
@@ -969,6 +1049,10 @@ _EOF_
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-one",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"/tekton/scripts/script-0-9l9zj",
 					"--",
@@ -1023,6 +1107,10 @@ _EOF_
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-schedule-me",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -1072,6 +1160,10 @@ _EOF_
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-image-pull",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-entrypoint",
 					"cmd",
 					"--",
@@ -1123,6 +1215,10 @@ _EOF_
 						"/tekton/tools/0",
 						"-termination_path",
 						"/tekton/termination",
+						"-step_metadata_dir",
+						"/tekton/steps/step-host-aliases",
+						"-step_metadata_dir_link",
+						"/tekton/steps/0",
 						"-entrypoint",
 						"cmd",
 						"--",
@@ -1173,6 +1269,10 @@ _EOF_
 						"/tekton/tools/0",
 						"-termination_path",
 						"/tekton/termination",
+						"-step_metadata_dir",
+						"/tekton/steps/step-use-my-hostNetwork",
+						"-step_metadata_dir_link",
+						"/tekton/steps/0",
 						"-entrypoint",
 						"cmd",
 						"--",
@@ -1237,6 +1337,10 @@ _EOF_
 						"/tekton/tools/0",
 						"-termination_path",
 						"/tekton/termination",
+						"-step_metadata_dir",
+						"/tekton/steps/step-name",
+						"-step_metadata_dir_link",
+						"/tekton/steps/0",
 						"-entrypoint",
 						"cmd",
 						"--",
@@ -1275,6 +1379,10 @@ _EOF_
 						"/tekton/tools/0",
 						"-termination_path",
 						"/tekton/termination",
+						"-step_metadata_dir",
+						"/tekton/steps/step-name",
+						"-step_metadata_dir_link",
+						"/tekton/steps/0",
 						"-timeout",
 						"1s",
 						"-entrypoint",
@@ -1320,6 +1428,10 @@ _EOF_
 						"/tekton/tools/0",
 						"-termination_path",
 						"/tekton/termination",
+						"-step_metadata_dir",
+						"/tekton/steps/step-name",
+						"-step_metadata_dir_link",
+						"/tekton/steps/0",
 						"-entrypoint",
 						"cmd",
 						"--",
@@ -1358,6 +1470,10 @@ _EOF_
 						"/tekton/tools/0",
 						"-termination_path",
 						"/tekton/termination",
+						"-step_metadata_dir",
+						"/tekton/steps/step-name",
+						"-step_metadata_dir_link",
+						"/tekton/steps/0",
 						"-entrypoint",
 						"cmd",
 						"--",
@@ -1406,6 +1522,10 @@ _EOF_
 						"/tekton/tools/0",
 						"-termination_path",
 						"/tekton/termination",
+						"-step_metadata_dir",
+						"/tekton/steps/step-name",
+						"-step_metadata_dir_link",
+						"/tekton/steps/0",
 						"-entrypoint",
 						"cmd",
 						"--",
@@ -1464,11 +1584,11 @@ _EOF_
 			var trAnnotations map[string]string
 			if c.trAnnotation == nil {
 				trAnnotations = map[string]string{
-					ReleaseAnnotation: version.PipelineVersion,
+					ReleaseAnnotation: fakeVersion,
 				}
 			} else {
 				trAnnotations = c.trAnnotation
-				trAnnotations[ReleaseAnnotation] = version.PipelineVersion
+				trAnnotations[ReleaseAnnotation] = fakeVersion
 			}
 			tr := &v1beta1.TaskRun{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1564,6 +1684,10 @@ func TestPodBuildwithAlphaAPIEnabled(t *testing.T) {
 					"/tekton/tools/0",
 					"-termination_path",
 					"/tekton/termination",
+					"-step_metadata_dir",
+					"/tekton/steps/step-name",
+					"-step_metadata_dir_link",
+					"/tekton/steps/0",
 					"-breakpoint_on_failure",
 					"-entrypoint",
 					"cmd",
@@ -1618,11 +1742,11 @@ func TestPodBuildwithAlphaAPIEnabled(t *testing.T) {
 			var trAnnotations map[string]string
 			if c.trAnnotation == nil {
 				trAnnotations = map[string]string{
-					ReleaseAnnotation: version.PipelineVersion,
+					ReleaseAnnotation: fakeVersion,
 				}
 			} else {
 				trAnnotations = c.trAnnotation
-				trAnnotations[ReleaseAnnotation] = version.PipelineVersion
+				trAnnotations[ReleaseAnnotation] = fakeVersion
 			}
 			tr := &v1beta1.TaskRun{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1682,9 +1806,9 @@ func TestPodBuildwithAlphaAPIEnabled(t *testing.T) {
 func TestMakeLabels(t *testing.T) {
 	taskRunName := "task-run-name"
 	want := map[string]string{
-		TaskRunLabelKey: taskRunName,
-		"foo":           "bar",
-		"hello":         "world",
+		pipeline.TaskRunLabelKey: taskRunName,
+		"foo":                    "bar",
+		"hello":                  "world",
 	}
 	got := makeLabels(&v1beta1.TaskRun{
 		ObjectMeta: metav1.ObjectMeta{

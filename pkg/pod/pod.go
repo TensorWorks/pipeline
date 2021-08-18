@@ -26,18 +26,15 @@ import (
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/pod"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	"github.com/tektoncd/pipeline/pkg/names"
-	"github.com/tektoncd/pipeline/pkg/version"
 	"github.com/tektoncd/pipeline/pkg/workspace"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
+	"knative.dev/pkg/changeset"
 )
 
 const (
-	// TaskRunLabelKey is the name of the label added to the Pod to identify the TaskRun
-	TaskRunLabelKey = pipeline.GroupName + pipeline.TaskRunLabelKey
-
 	// TektonHermeticEnvVar is the env var we set in containers to indicate they should be run hermetically
 	TektonHermeticEnvVar = "TEKTON_HERMETIC"
 
@@ -67,6 +64,9 @@ var (
 	}, {
 		Name:      "tekton-internal-results",
 		MountPath: pipeline.DefaultResultPath,
+	}, {
+		Name:      "tekton-internal-steps",
+		MountPath: pipeline.StepsDir,
 	}}
 	implicitVolumes = []corev1.Volume{{
 		Name:         "tekton-internal-workspace",
@@ -76,6 +76,9 @@ var (
 		VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
 	}, {
 		Name:         "tekton-internal-results",
+		VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+	}, {
+		Name:         "tekton-internal-steps",
 		VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
 	}}
 )
@@ -238,11 +241,7 @@ func (b *Builder) Build(ctx context.Context, taskRun *v1beta1.TaskRun, taskSpec 
 		if s.WorkingDir == "" && shouldOverrideWorkingDir {
 			stepContainers[i].WorkingDir = pipeline.WorkspaceDir
 		}
-		if s.Name == "" {
-			stepContainers[i].Name = names.SimpleNameGenerator.RestrictLength(fmt.Sprintf("%sunnamed-%d", stepPrefix, i))
-		} else {
-			stepContainers[i].Name = names.SimpleNameGenerator.RestrictLength(fmt.Sprintf("%s%s", stepPrefix, s.Name))
-		}
+		stepContainers[i].Name = names.SimpleNameGenerator.RestrictLength(StepName(s.Name, i))
 	}
 
 	// By default, use an empty pod template and take the one defined in the task run spec if any
@@ -290,7 +289,11 @@ func (b *Builder) Build(ctx context.Context, taskRun *v1beta1.TaskRun, taskSpec 
 	}
 
 	podAnnotations := taskRun.Annotations
-	podAnnotations[ReleaseAnnotation] = version.PipelineVersion
+	version, err := changeset.Get()
+	if err != nil {
+		return nil, err
+	}
+	podAnnotations[ReleaseAnnotation] = version
 
 	if shouldAddReadyAnnotationOnPodCreate(ctx, taskSpec.Sidecars) {
 		podAnnotations[readyAnnotation] = readyAnnotationValue
@@ -350,7 +353,7 @@ func makeLabels(s *v1beta1.TaskRun) map[string]string {
 
 	// NB: Set this *after* passing through TaskRun Labels. If the TaskRun
 	// specifies this label, it should be overridden by this value.
-	labels[TaskRunLabelKey] = s.Name
+	labels[pipeline.TaskRunLabelKey] = s.Name
 	return labels
 }
 

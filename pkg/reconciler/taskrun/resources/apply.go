@@ -28,6 +28,7 @@ import (
 	"github.com/tektoncd/pipeline/pkg/apis/config"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
+	"github.com/tektoncd/pipeline/pkg/pod"
 	"github.com/tektoncd/pipeline/pkg/substitution"
 )
 
@@ -198,6 +199,18 @@ func ApplyTaskResults(spec *v1beta1.TaskSpec) *v1beta1.TaskSpec {
 	return ApplyReplacements(spec, stringReplacements, map[string][]string{})
 }
 
+// ApplyStepExitCodePath replaces the occurrences of exitCode path with the absolute tekton internal path
+// Replace $(steps.<step-name>.exitCode.path) with pipeline.StepPath/<step-name>/exitCode
+func ApplyStepExitCodePath(spec *v1beta1.TaskSpec) *v1beta1.TaskSpec {
+	stringReplacements := map[string]string{}
+
+	for i, step := range spec.Steps {
+		stringReplacements[fmt.Sprintf("steps.%s.exitCode.path", pod.StepName(step.Name, i))] =
+			filepath.Join(pipeline.StepsDir, pod.StepName(step.Name, i), "exitCode")
+	}
+	return ApplyReplacements(spec, stringReplacements, map[string][]string{})
+}
+
 // ApplyCredentialsPath applies a substitution of the key $(credentials.path) with the path that credentials
 // from annotated secrets are written to.
 func ApplyCredentialsPath(spec *v1beta1.TaskSpec, path string) *v1beta1.TaskSpec {
@@ -265,6 +278,10 @@ func ApplyReplacements(spec *v1beta1.TaskSpec, stringReplacements map[string]str
 				}
 			}
 		}
+	}
+
+	for i, v := range spec.Workspaces {
+		spec.Workspaces[i].MountPath = substitution.ApplyReplacements(v.MountPath, stringReplacements)
 	}
 
 	// Apply variable substitution to the sidecar definitions

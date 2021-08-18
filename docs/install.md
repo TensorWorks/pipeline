@@ -22,7 +22,7 @@ This guide explains how to install Tekton Pipelines. It covers the following top
 
 ## Before you begin
 
-1. You must have a Kubernetes cluster running version 1.18 or later.
+1. You must have a Kubernetes cluster running version 1.19 or later.
 
    If you don't already have a cluster, you can create one for testing with `kind`.
    [Install `kind`](https://kind.sigs.k8s.io/docs/user/quick-start/#installation) and create a cluster by running [`kind create cluster`](https://kind.sigs.k8s.io/docs/user/quick-start/#creating-a-cluster). This
@@ -365,6 +365,10 @@ use of custom tasks in pipelines.
 - `enable-api-fields`: set this flag to "stable" to allow only the
 most stable features to be used. Set it to "alpha" to allow alpha
 features to be used.
+
+- `scope-when-expressions-to-task`: set this flag to "true" to scope `when` expressions to guard a `Task` only. Set it
+  to "false" to guard a `Task` and its dependent `Tasks`. It defaults to "false". For more information, see [guarding
+  `Task` execution using `when` expressions](pipelines.md#guard-task-execution-using-whenexpressions).
 
 For example:
 

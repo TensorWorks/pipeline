@@ -414,7 +414,7 @@ If you set the timeout to 0, the `PipelineRun` fails immediately upon encounteri
 
 > :warning: ** `timeout`will be deprecated in future versions. Consider using `timeouts` instead.
 
-You can use the `timeouts` field to set the `PipelineRun's` desired timeout value in minutes.  There are three sub-fields than can be used to specify failures timeout for the entire pipeline, for tasks, and for finally tasks.  
+You can use the `timeouts` field to set the `PipelineRun's` desired timeout value in minutes.  There are three sub-fields than can be used to specify failures timeout for the entire pipeline, for tasks, and for `finally` tasks.
 
 ```yaml
 timeouts:
@@ -562,7 +562,9 @@ Task Runs:
 
 To cancel a `PipelineRun` that's currently executing, update its definition
 to mark it as "PipelineRunCancelled". When you do so, the spawned `TaskRuns` are also marked
-as cancelled and all associated `Pods` are deleted. Pending final tasks are not scheduled. 
+as cancelled, all associated `Pods` are deleted, and their `Retries` are not executed.
+Pending `finally` tasks are not scheduled.
+
 For example:
 
 ```yaml
@@ -584,7 +586,9 @@ is currently an **_alpha feature_**.
 
 To gracefully cancel a `PipelineRun` that's currently executing, update its definition
 to mark it as "CancelledRunFinally". When you do so, the spawned `TaskRuns` are also marked
-as cancelled and all associated `Pods` are deleted. Final tasks are scheduled normally. 
+as cancelled, all associated `Pods` are deleted, and their `Retries` are not executed.
+`finally` tasks are scheduled normally.
+
 For example:
 
 ```yaml
@@ -602,7 +606,7 @@ spec:
 
 To gracefully stop a `PipelineRun` that's currently executing, update its definition
 to mark it as "StoppedRunFinally". When you do so, the spawned `TaskRuns` are completed normally,
-but no new non-final task is scheduled. Final tasks are executed afterwards.
+but no new non-`finally` task is scheduled. `finally` tasks are executed afterwards.
 For example:
 
 ```yaml

@@ -88,66 +88,6 @@ func TestAllowsExecution(t *testing.T) {
 	}
 }
 
-func TestHaveVariables(t *testing.T) {
-	tests := []struct {
-		name            string
-		whenExpressions WhenExpressions
-		expected        bool
-	}{{
-		name: "doesn't have variable",
-		whenExpressions: WhenExpressions{
-			{
-				Input:    "foo",
-				Operator: selection.In,
-				Values:   []string{"foo", "bar"},
-			},
-		},
-		expected: false,
-	}, {
-		name: "have variable - input",
-		whenExpressions: WhenExpressions{
-			{
-				Input:    "$(params.foobar)",
-				Operator: selection.NotIn,
-				Values:   []string{"foobar"},
-			},
-		},
-		expected: true,
-	}, {
-		name: "have variable - values",
-		whenExpressions: WhenExpressions{
-			{
-				Input:    "foobar",
-				Operator: selection.In,
-				Values:   []string{"$(params.foobar)"},
-			},
-		},
-		expected: true,
-	}, {
-		name: "have variable - multiple when expressions",
-		whenExpressions: WhenExpressions{
-			{
-				Input:    "foo",
-				Operator: selection.NotIn,
-				Values:   []string{"bar"},
-			}, {
-				Input:    "foobar",
-				Operator: selection.In,
-				Values:   []string{"$(params.foobar)"},
-			},
-		},
-		expected: true,
-	}}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := tc.whenExpressions.HaveVariables()
-			if d := cmp.Diff(tc.expected, got); d != "" {
-				t.Errorf("Error evaluating HaveVariables() for When Expressions in test case %s", diff.PrintWantGot(d))
-			}
-		})
-	}
-}
-
 func TestReplaceWhenExpressionsVariables(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -261,7 +201,7 @@ func TestReplaceWhenExpressionsVariables(t *testing.T) {
 	}}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tc.whenExpressions.ReplaceWhenExpressionsVariables(tc.replacements)
+			got := tc.whenExpressions.ReplaceWhenExpressionsVariables(tc.replacements, nil)
 			if d := cmp.Diff(tc.expected, got); d != "" {
 				t.Errorf("Error evaluating When Expressions in test case %s", diff.PrintWantGot(d))
 			}
@@ -271,10 +211,11 @@ func TestReplaceWhenExpressionsVariables(t *testing.T) {
 
 func TestApplyReplacements(t *testing.T) {
 	tests := []struct {
-		name         string
-		original     *WhenExpression
-		replacements map[string]string
-		expected     *WhenExpression
+		name              string
+		original          *WhenExpression
+		replacements      map[string]string
+		arrayReplacements map[string][]string
+		expected          *WhenExpression
 	}{{
 		name: "replace parameters variables",
 		original: &WhenExpression{
@@ -307,10 +248,48 @@ func TestApplyReplacements(t *testing.T) {
 			Operator: selection.In,
 			Values:   []string{"barfoo"},
 		},
+	}, {
+		name: "replace array params",
+		original: &WhenExpression{
+			Input:    "$(params.path)",
+			Operator: selection.In,
+			Values:   []string{"$(params.branches[*])"},
+		},
+		replacements: map[string]string{
+			"params.path": "readme.md",
+		},
+		arrayReplacements: map[string][]string{
+			"params.branches": {"dev", "stage"},
+		},
+		expected: &WhenExpression{
+			Input:    "readme.md",
+			Operator: selection.In,
+			Values:   []string{"dev", "stage"},
+		},
+	}, {
+		name: "replace string and array params",
+		original: &WhenExpression{
+			Input:    "$(params.path)",
+			Operator: selection.In,
+			Values:   []string{"$(params.branches[*])", "$(params.matchPath)", "$(params.files[*])"},
+		},
+		replacements: map[string]string{
+			"params.path":      "readme.md",
+			"params.matchPath": "foo.txt",
+		},
+		arrayReplacements: map[string][]string{
+			"params.branches": {"dev", "stage"},
+			"params.files":    {"readme.md", "test.go"},
+		},
+		expected: &WhenExpression{
+			Input:    "readme.md",
+			Operator: selection.In,
+			Values:   []string{"dev", "stage", "foo.txt", "readme.md", "test.go"},
+		},
 	}}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tc.original.applyReplacements(tc.replacements)
+			got := tc.original.applyReplacements(tc.replacements, tc.arrayReplacements)
 			if d := cmp.Diff(tc.expected, &got); d != "" {
 				t.Errorf("Error applying replacements for When Expressions: %s", diff.PrintWantGot(d))
 			}
