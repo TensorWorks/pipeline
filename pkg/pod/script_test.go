@@ -624,3 +624,51 @@ sidecar-1
 	}
 
 }
+
+func TestConvertScripts_Windows_SidecarOnly(t *testing.T) {
+	names.TestingSeed()
+
+	gotInit, gotSteps, gotSidecars := convertScripts(images.ShellImage, images.ShellImageWin, []v1beta1.Step{{
+		// No script to convert here.:
+		Container: corev1.Container{Image: "step-1"},
+	}}, []v1beta1.Sidecar{{
+		Script: `#!win python
+sidecar-1`,
+		Container: corev1.Container{Image: "sidecar-1"},
+	}}, nil)
+	wantInit := &corev1.Container{
+		Name:    "place-scripts",
+		Image:   images.ShellImageWin,
+		Command: []string{"pwsh"},
+		Args: []string{"-Command", `@"
+#!win python
+sidecar-1
+"@ | Out-File -FilePath /tekton/scripts/sidecar-script-0-9l9zj
+`},
+		VolumeMounts: []corev1.VolumeMount{scriptsVolumeMount, toolsMount},
+	}
+	want := []corev1.Container{{
+		Image: "step-1",
+	}}
+
+	wantSidecars := []corev1.Container{{
+		Image:        "sidecar-1",
+		Command:      []string{"python"},
+		Args:         []string{"/tekton/scripts/sidecar-script-0-9l9zj"},
+		VolumeMounts: []corev1.VolumeMount{scriptsVolumeMount},
+	}}
+	if d := cmp.Diff(wantInit, gotInit); d != "" {
+		t.Errorf("Init Container Diff %s", diff.PrintWantGot(d))
+	}
+	if d := cmp.Diff(want, gotSteps); d != "" {
+		t.Errorf("Step Containers Diff %s", diff.PrintWantGot(d))
+	}
+	if d := cmp.Diff(wantSidecars, gotSidecars); d != "" {
+		t.Errorf("Sidecar Containers Diff %s", diff.PrintWantGot(d))
+	}
+
+	if len(gotSidecars) != 1 {
+		t.Errorf("Wanted 1 sidecar, got %v", len(gotSidecars))
+	}
+
+}
