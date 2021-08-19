@@ -20,16 +20,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	knativetest "knative.dev/pkg/test"
-)
-
-var (
-	ignoreTerminatedFields = cmpopts.IgnoreFields(corev1.ContainerStateTerminated{}, "StartedAt", "FinishedAt", "ContainerID")
-	ignoreStepFields       = cmpopts.IgnoreFields(v1beta1.StepState{}, "ImageID")
 )
 
 func TestWindowsScript(t *testing.T) {

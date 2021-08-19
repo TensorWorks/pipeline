@@ -48,7 +48,7 @@ var (
 	scriptsVolumeMount = corev1.VolumeMount{
 		Name:      scriptsVolumeName,
 		MountPath: scriptsDir,
-		ReadOnly:  true,
+		ReadOnly: true,
 	}
 	writeScriptsVolumeMount = corev1.VolumeMount{
 		Name:      scriptsVolumeName,
@@ -96,7 +96,7 @@ func convertScripts(shellImageLinux string, shellImageWin string, steps []v1beta
 		Image:        shellImage,
 		Command:      []string{shellCommand},
 		Args:         []string{shellArg, ""},
-		VolumeMounts: []corev1.VolumeMount{scriptsVolumeMount, toolsMount},
+		VolumeMounts: []corev1.VolumeMount{writeScriptsVolumeMount, toolsMount},
 	}
 
 	breakpoints := []string{}

@@ -499,7 +499,7 @@ script-3
 no-shebang
 "@ | Out-File -FilePath /tekton/scripts/script-3-mssqb.cmd
 `},
-		VolumeMounts: []corev1.VolumeMount{scriptsVolumeMount, toolsMount},
+		VolumeMounts: []corev1.VolumeMount{writeScriptsVolumeMount, toolsMount},
 	}
 	want := []corev1.Container{{
 		Image:        "step-1",
@@ -583,7 +583,7 @@ script-3
 sidecar-1
 "@ | Out-File -FilePath /tekton/scripts/sidecar-script-0-mssqb
 `},
-		VolumeMounts: []corev1.VolumeMount{scriptsVolumeMount, toolsMount},
+		VolumeMounts: []corev1.VolumeMount{writeScriptsVolumeMount, toolsMount},
 	}
 	want := []corev1.Container{{
 		Image:        "step-1",
@@ -645,7 +645,7 @@ sidecar-1`,
 sidecar-1
 "@ | Out-File -FilePath /tekton/scripts/sidecar-script-0-9l9zj
 `},
-		VolumeMounts: []corev1.VolumeMount{scriptsVolumeMount, toolsMount},
+		VolumeMounts: []corev1.VolumeMount{writeScriptsVolumeMount, toolsMount},
 	}
 	want := []corev1.Container{{
 		Image: "step-1",
