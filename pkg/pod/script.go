@@ -48,7 +48,7 @@ var (
 	scriptsVolumeMount = corev1.VolumeMount{
 		Name:      scriptsVolumeName,
 		MountPath: scriptsDir,
-		ReadOnly: true,
+		ReadOnly:  true,
 	}
 	writeScriptsVolumeMount = corev1.VolumeMount{
 		Name:      scriptsVolumeName,

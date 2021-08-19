@@ -46,13 +46,13 @@ func TestWindowsScript(t *testing.T) {
 			TaskSpec: &v1beta1.TaskSpec{
 				Steps: []v1beta1.Step{{
 					Container: corev1.Container{
-						Image:   "mcr.microsoft.com/powershell:nanoserver",
+						Image: "mcr.microsoft.com/powershell:nanoserver",
 					},
 					Script: `#!win pwsh.exe -File
 echo Hello`,
 				}, {
 					Container: corev1.Container{
-						Image:   "mcr.microsoft.com/powershell:nanoserver",
+						Image: "mcr.microsoft.com/powershell:nanoserver",
 					},
 					Script: `#!win
 echo Hello`,
@@ -121,24 +121,23 @@ func TestWindowsScriptFailure(t *testing.T) {
 			TaskSpec: &v1beta1.TaskSpec{
 				Steps: []v1beta1.Step{{
 					Container: corev1.Container{
-						Image:   "mcr.microsoft.com/powershell:nanoserver",
+						Image: "mcr.microsoft.com/powershell:nanoserver",
 					},
 					Script: `#!win pwsh.exe -File
 echo Hello`,
-					}, {
+				}, {
 					Container: corev1.Container{
-						Image:   "mcr.microsoft.com/powershell:nanoserver",
+						Image: "mcr.microsoft.com/powershell:nanoserver",
 					},
 					Script: `#!win pwsh.exe -File
 exit 42`,
-					}, {
+				}, {
 					Container: corev1.Container{
-						Image:   "mcr.microsoft.com/powershell:nanoserver",
+						Image: "mcr.microsoft.com/powershell:nanoserver",
 					},
 					Script: `#!win pwsh.exe -File
 echo Hello`,
-					},
-				},
+				}},
 			},
 			PodTemplate: &v1beta1.PodTemplate{
 				NodeSelector: map[string]string{"kubernetes.io/os": "windows"},
