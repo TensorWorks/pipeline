@@ -1,4 +1,4 @@
-defaultBaseImage: gcr.io/distroless/static:nonroot
+defaultBaseImage: gcr.io/tekton-releases/github.com/tektoncd/pipeline/combined-base-image@sha256:dacb6a0115ad38297df9e0a2ebf8d516b45b3cc56645a2c19781b4b2b10a1095
 baseImageOverrides:
   # git-init uses a base image that supports running either as root or as user nonroot with UID 65532.
   github.com/tektoncd/pipeline/cmd/git-init: gcr.io/tekton-nightly/github.com/tektoncd/pipeline/git-init-build-base:latest
