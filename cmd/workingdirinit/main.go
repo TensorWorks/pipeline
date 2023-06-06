@@ -20,13 +20,29 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
 func main() {
-	for _, d := range os.Args {
+	for i, d := range os.Args {
+		if i == 0 {
+			// os.Args[0] is the path to this executable, so we should skip it
+			continue
+		}
+
+		ws := "/workspace/"
 		p := filepath.Clean(d)
-		if !filepath.IsAbs(p) || strings.HasPrefix(p, "/workspace/") {
+
+		if runtime.GOOS == "windows" {
+			ws = "C:\\workspace\\"
+
+			if strings.HasPrefix(p, "\\") && !strings.HasPrefix(p, "\\\\") {
+				p = "C:" + p
+			}
+		}
+
+		if !filepath.IsAbs(p) || strings.HasPrefix(p, ws) {
 			if err := os.MkdirAll(p, 0755); err != nil {
 				log.Fatalf("Failed to mkdir %q: %v", p, err)
 			}
